@@ -56,3 +56,6 @@ set PASSWORD=your_portal_password
 set TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 ```
 4. **Run the script**
+
+
+**Live demo running — will notify students on department release**

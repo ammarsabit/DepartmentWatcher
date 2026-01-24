@@ -1,21 +1,27 @@
 import requests
+import time
+import telebot # pip install pyTelegramBotAPI
+import threading
+import os
 
-with open("credentials.txt", "r") as file:
-    content = file.readlines()
-    crendential = {
-        "user_name": content[0].split("=")[1].strip(),
-        "password": content[1].split("=")[1].strip(),
-        "telegram_bot_token": content[2].split("=")[1].strip()
-    }
+login_credential = {
+    "user_name": os.getenv("USER_NAME"),
+    "password": os.getenv("PASSWORD")
+}
+
+telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+
+program = ""
+bot = telebot.TeleBot(telegram_bot_token)
 
 def login():
     login_url = "https://estudent.astu.edu.et/api/auth/sign_in"
-    response = requests.post(login_url, json=crendential)
+    response = requests.post(login_url, json=login_crendential)
 
     return response
 
 def check_update(access_token, client, uid):
-    graphql_url = "https://estudent.astu.edu.et/api//graphql"
+    graphql_url = "https://estudent.astu.edu.et/api/graphql"
 
     query = """
         query getPerson($id: ID!) {
@@ -43,21 +49,71 @@ def check_update(access_token, client, uid):
         "query": query}
 
     response = requests.post(graphql_url, json=payload, headers=headers)
-    return response.json()["data"]["getPerson"]["applicant"]["student"]["program"]["name"]
+    data = response.json().get("data")
+    if not data:
+        return None
 
+    program_name = data["getPerson"]["applicant"]["student"]["program"]["name"]
+    return program_name
+
+@bot.message_handler(commands=['start'])
+def start(message):
+    chat_id = message.chat.id
+    bot.send_message(chat_id, "welcome")
+
+    try:
+        with open("bot_users.txt", "r") as file:
+            users_id = file.readlines()
+            for user_id in users_id:
+                if user_id.strip() == str(chat_id):
+                    return 
+                
+            with open("bot_users.txt", "a") as file:
+                file.write(f"{chat_id}\n")
+                
+    except(FileNotFoundError):
+        with open("bot_users.txt", "w") as file:
+            file.write(f"{chat_id}\n")
+                     
+def botNotify():
+    with open("bot_users.txt", "r") as file:
+        users_id = file.readlines()
+        for user_id in users_id:
+            bot.send_message(user_id.strip(), "Congratulation Department is released you can go and check")
 
 if __name__ == "__main__":
-    login = login()
-    if login.status_code == 401:
-        print("Invalid credential") 
+    response = None
+    token_expiry = 0
 
-    elif login.status_code != 200:
-        print("something went wrong")
-    else:
-        access_token = login.headers.get("access-token")
-        client = login.headers.get("client")
-        uid = login.headers.get("uid")
-
-        print(check_update(access_token, client, uid))
+    threading.Thread(target=bot.infinity_polling, daemon=True).start() # Telegram bot is listening on different thread so that it wont be blocked by the main thread 
     
+    while True:
+        if (time.time() > token_expiry):
+            response = login()
+            token_expiry = int(response.headers.get("expiry")) # Epoch time
 
+        if response.status_code == 401:
+            print("Invalid credential") 
+
+        elif response.status_code != 200:
+            print("something went wrong")
+        else:
+            access_token = response.headers.get("access-token")
+            client = response.headers.get("client")
+            uid = response.headers.get("uid")
+
+            program_update = check_update(access_token, client, uid)
+            if program_update is None:
+                print("Failed to fetch program. Retrying...")
+                continue
+
+            elif (program == ""):
+                program = program_update
+
+            elif program != program_update:
+                print("Department release detected!")
+                print(f"Your department is {program_update}")
+                botNotify()
+                break
+
+        time.sleep(900) # 15' of gap  

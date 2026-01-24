@@ -16,7 +16,7 @@ bot = telebot.TeleBot(telegram_bot_token)
 
 def login():
     login_url = "https://estudent.astu.edu.et/api/auth/sign_in"
-    response = requests.post(login_url, json=login_crendential)
+    response = requests.post(login_url, json=login_credential)
 
     return response
 
@@ -59,7 +59,7 @@ def check_update(access_token, client, uid):
 @bot.message_handler(commands=['start'])
 def start(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, "welcome")
+    bot.send_message(chat_id, "🎉 Welcome to ASTU's Department Release Watcher! We’ll notify you within 15 minutes once your department is released.")
 
     try:
         with open("bot_users.txt", "r") as file:
@@ -79,7 +79,7 @@ def botNotify():
     with open("bot_users.txt", "r") as file:
         users_id = file.readlines()
         for user_id in users_id:
-            bot.send_message(user_id.strip(), "Congratulation Department is released you can go and check")
+            bot.send_message(user_id.strip(), "🎊 Congratulations! Your department has been released. Go check it on your student portal now!")
 
 if __name__ == "__main__":
     response = None

@@ -51,6 +51,7 @@ def check_update(access_token, client, uid):
     response = requests.post(graphql_url, json=payload, headers=headers)
     data = response.json().get("data")
     if not data:
+        print(response)
         return None
 
     program_name = data["getPerson"]["applicant"]["student"]["program"]["name"]

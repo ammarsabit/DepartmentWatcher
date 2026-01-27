@@ -98,6 +98,7 @@ if __name__ == "__main__":
 
         elif response.status_code != 200:
             print("something went wrong")
+            print(response)
         else:
             access_token = response.headers.get("access-token")
             client = response.headers.get("client")

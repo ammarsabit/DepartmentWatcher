@@ -16,9 +16,16 @@ bot = telebot.TeleBot(telegram_bot_token)
 
 def login():
     login_url = "https://estudent.astu.edu.et/api/auth/sign_in"
-    response = requests.post(login_url, json=login_credential)
-
-    return response
+    try:
+        response = requests.post(
+            "https://estudent.astu.edu.et/api/auth/sign_in",
+            json=login_credential,
+            timeout=10
+        )
+        return response
+    except requests.exceptions.RequestException as e:
+        print("Login request failed:", e)
+        return None
 
 def check_update(access_token, client, uid):
     graphql_url = "https://estudent.astu.edu.et/api/graphql"
@@ -48,14 +55,18 @@ def check_update(access_token, client, uid):
         "variables":{"id":122},
         "query": query}
 
-    response = requests.post(graphql_url, json=payload, headers=headers)
-    data = response.json().get("data")
-    if not data:
-        print(response)
+    try:
+        response = requests.post(graphql_url, json=payload, headers=headers, timeout=10)
+        data = response.json().get("data")
+        if not data:
+            print(response)
+            return None
+    
+        program_name = data["getPerson"]["applicant"]["student"]["program"]["name"]
+        return program_name
+    except requests.exceptions.RequestException as e:
+        print("GraphQL error:", e)
         return None
-
-    program_name = data["getPerson"]["applicant"]["student"]["program"]["name"]
-    return program_name
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -89,33 +100,49 @@ if __name__ == "__main__":
     threading.Thread(target=bot.infinity_polling, daemon=True).start() # Telegram bot is listening on different thread so that it wont be blocked by the main thread 
     
     while True:
-        if (time.time() > token_expiry):
+        if time.time() > token_expiry:
             response = login()
-            token_expiry = int(response.headers.get("expiry")) # Epoch time
 
-        if response.status_code == 401:
-            print("Invalid credential") 
-
-        elif response.status_code != 200:
-            print("something went wrong")
-            print(response)
-        else:
-            access_token = response.headers.get("access-token")
-            client = response.headers.get("client")
-            uid = response.headers.get("uid")
-
-            program_update = check_update(access_token, client, uid)
-            if program_update is None:
-                print("Failed to fetch program. Retrying...")
+            if response is None:
+                print("No response from login endpoint")
+                time.sleep(60)
                 continue
 
-            elif (program == ""):
-                program = program_update
+            if response.status_code == 401:
+                print("Invalid credentials")
+                time.sleep(300)
+                continue
 
-            elif program != program_update:
-                print("Department release detected!")
-                print(f"Your department is {program_update}")
-                botNotify()
-                break
+            if response.status_code != 200:
+                print("Login error:", response.status_code)
+                time.sleep(60)
+                continue
+
+            expiry = response.headers.get("expiry")
+            if not expiry:
+                print("Missing expiry header")
+                time.sleep(60)
+                continue
+
+            token_expiry = int(expiry)
+
+        access_token = response.headers.get("access-token")
+        client = response.headers.get("client")
+        uid = response.headers.get("uid")
+
+        program_update = check_update(access_token, client, uid)
+        if program_update is None:
+            print("Failed to fetch program. Retrying...")
+            time.sleep(60)
+            continue
+
+        elif (program == ""):
+            program = program_update
+
+        elif program != program_update:
+            print("Department release detected!")
+            print(f"Your department is {program_update}")
+            botNotify()
+            break
 
         time.sleep(900) # 15' of gap  

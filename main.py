@@ -118,13 +118,12 @@ if __name__ == "__main__":
                 time.sleep(60)
                 continue
 
-            expiry = response.headers.get("expiry")
             if not expiry:
                 print("Missing expiry header")
                 time.sleep(60)
                 continue
 
-            token_expiry = int(expiry)
+            token_expiry = int(response.headers.get("expiry")) - 60 # 1 minute of buffer
 
         access_token = response.headers.get("access-token")
         client = response.headers.get("client")
@@ -145,4 +144,4 @@ if __name__ == "__main__":
             botNotify()
             break
 
-        time.sleep(900) # 15' of gap  
+        time.sleep(480) # 15' of gap  

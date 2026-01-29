@@ -118,7 +118,7 @@ if __name__ == "__main__":
                 time.sleep(60)
                 continue
 
-            if not expiry:
+            if not response.headers.get("expiry"):
                 print("Missing expiry header")
                 time.sleep(60)
                 continue

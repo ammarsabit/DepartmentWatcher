@@ -59,3 +59,5 @@ set TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 
 
 **Live demo running — will notify students on department release**
+
+**Update** - Notified 75+ students in real time when departments were released.
